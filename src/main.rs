@@ -1,12 +1,17 @@
+use std::{env, path::PathBuf};
+
 use clap::{crate_authors, crate_name};
+use crevice::std140::AsStd140;
 use ggez::{
     Context, ContextBuilder, GameError, GameResult,
     conf::WindowMode,
     event::{self, EventHandler},
-    glam::ivec2,
-    graphics::{Canvas, Color, DrawMode, DrawParam, Drawable, Mesh, Rect},
+    glam::Vec2,
+    graphics::{
+        Canvas, Color, DrawMode, DrawParam, Drawable, Mesh, Rect, Shader, ShaderBuilder,
+        ShaderParams, ShaderParamsBuilder,
+    },
 };
-use rand::{Rng, SeedableRng, rngs::StdRng};
 use util::ContextExt;
 
 mod util {
@@ -22,27 +27,40 @@ mod util {
     }
 }
 
+#[derive(AsStd140)]
+struct Uniforms {
+    resolution: Vec2,
+    grid_spacing: f32,
+    shift_duration: f32,
+    time: f32,
+}
+
 struct Game {
-    grid_density: f32,
-    shift_duration: u128,
-    grid_pixel: Mesh,
+    uniforms: Uniforms,
+    params: ShaderParams<Uniforms>,
+    shader: Shader,
 }
 
 impl Game {
-    pub fn new(ctx: &Context) -> GameResult<Game> {
-        let grid_density = 0.1;
-        let shift_duration = 500;
-        let (width, height) = ctx.gfx.drawable_size();
-        let grid_pixel = Mesh::new_rectangle(
-            ctx,
-            DrawMode::fill(),
-            Rect::new(0.0, 0.0, width / grid_density, height / grid_density),
-            Color::WHITE,
-        )?;
-        let this = Game {
-            grid_density,
+    pub fn new(ctx: &mut Context) -> GameResult<Game> {
+        let grid_spacing = 0.005;
+        let shift_duration = 0.05;
+        let resolution = ctx.res();
+        let time = ctx.time.time_since_start().as_secs_f32();
+        let uniforms = Uniforms {
+            resolution,
+            grid_spacing,
             shift_duration,
-            grid_pixel,
+            time,
+        };
+        let params = ShaderParamsBuilder::new(&uniforms).build(ctx);
+        let shader = ShaderBuilder::new()
+            .fragment_path("/noise.wgsl")
+            .build(ctx)?;
+        let this = Game {
+            uniforms,
+            params,
+            shader,
         };
 
         Ok(this)
@@ -50,7 +68,10 @@ impl Game {
 }
 
 impl EventHandler<Context> for Game {
-    fn update(&mut self, _ctx: &mut Context) -> Result<(), GameError> {
+    fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
+        self.uniforms.resolution = ctx.res();
+        self.uniforms.time = ctx.time.time_since_start().as_secs_f32();
+        self.params.set_uniforms(ctx, &self.uniforms);
         Ok(())
     }
 
@@ -60,28 +81,15 @@ impl EventHandler<Context> for Game {
         {
             let canvas = &mut canvas;
             let res = ctx.res();
-
-            let grid_size = (res * self.grid_density).as_u64vec2();
-            let ires = res.as_ivec2();
-
-            let time = ctx.time.time_since_start().as_millis();
-            let rng_frame = time / self.shift_duration;
-            let mut rng = StdRng::seed_from_u64(rng_frame.try_into().unwrap_or_default());
-
-            for x in (0..ires.x).step_by(grid_size.x as usize) {
-                for y in (0..ires.y).step_by(grid_size.y as usize) {
-                    let pos = ivec2(x, y).as_vec2();
-                    let shade = rng.random();
-                    let color = Color {
-                        r: shade,
-                        b: shade,
-                        g: shade,
-                        a: 1.0,
-                    };
-                    self.grid_pixel
-                        .draw(canvas, DrawParam::default().dest(pos).color(color));
-                }
-            }
+            canvas.set_shader(&self.shader);
+            canvas.set_shader_params(&self.params);
+            Mesh::new_rectangle(
+                ctx,
+                DrawMode::fill(),
+                Rect::new(0.0, 0.0, res.x, res.y),
+                Color::WHITE,
+            )?
+            .draw(canvas, DrawParam::default());
         }
 
         canvas.finish(ctx)
@@ -89,9 +97,17 @@ impl EventHandler<Context> for Game {
 }
 
 fn main() -> GameResult<()> {
-    let (ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
+    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
+        let mut path = PathBuf::from(manifest_dir);
+        path.push("resources");
+        path
+    } else {
+        PathBuf::from("./resources")
+    };
+    let (mut ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
+        .add_resource_path(resource_dir)
         .build()?;
-    let game = Game::new(&ctx)?;
+    let game = Game::new(&mut ctx)?;
     event::run(ctx, event_loop, game)
 }
