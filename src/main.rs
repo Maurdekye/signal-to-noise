@@ -30,9 +30,18 @@ mod util {
 #[derive(AsStd140)]
 struct Uniforms {
     resolution: Vec2,
+    mouse: Vec2,
     grid_spacing: f32,
     shift_duration: f32,
     time: f32,
+}
+
+impl Uniforms {
+    pub fn update(&mut self, ctx: &Context) {
+        self.resolution = ctx.res();
+        self.time = ctx.time.time_since_start().as_secs_f32();
+        self.mouse = ctx.mouse.position().into();
+    }
 }
 
 struct Game {
@@ -43,16 +52,14 @@ struct Game {
 
 impl Game {
     pub fn new(ctx: &mut Context) -> GameResult<Game> {
-        let grid_spacing = 0.005;
-        let shift_duration = 0.05;
-        let resolution = ctx.res();
-        let time = ctx.time.time_since_start().as_secs_f32();
-        let uniforms = Uniforms {
-            resolution,
-            grid_spacing,
-            shift_duration,
-            time,
+        let mut uniforms = Uniforms {
+            resolution: Vec2::ZERO,
+            mouse: Vec2::ZERO,
+            time: 0.0,
+            grid_spacing: 0.005,
+            shift_duration: 0.05,
         };
+        uniforms.update(ctx);
         let params = ShaderParamsBuilder::new(&uniforms).build(ctx);
         let shader = ShaderBuilder::new()
             .fragment_path("/noise.wgsl")
@@ -69,8 +76,7 @@ impl Game {
 
 impl EventHandler<Context> for Game {
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
-        self.uniforms.resolution = ctx.res();
-        self.uniforms.time = ctx.time.time_since_start().as_secs_f32();
+        self.uniforms.update(ctx);
         self.params.set_uniforms(ctx, &self.uniforms);
         Ok(())
     }
