@@ -1,0 +1,10 @@
+[package]
+name = "signal-to-noise"
+version = "0.1.0"
+edition = "2024"
+authors = ["maurdekye"]
+
+[dependencies]
+clap = { version = "4.5.28", features = ["cargo", "derive"] }
+ggez = { git = "https://github.com/ggez/ggez.git", rev = "21a0c30" }
+rand = "0.9.0"
