@@ -6,7 +6,7 @@ use ggez::{
     Context, ContextBuilder, GameError, GameResult,
     conf::WindowMode,
     event::{self, EventHandler},
-    glam::Vec2,
+    glam::{Vec2, vec2},
     graphics::{
         Canvas, Color, DrawMode, DrawParam, Drawable, Mesh, Rect, Shader, ShaderBuilder,
         ShaderParams, ShaderParamsBuilder,
@@ -27,39 +27,70 @@ mod util {
     }
 }
 
-#[derive(AsStd140)]
+fn inv_exp(x: f32) -> f32 {
+    1.0 - (-x).exp()
+}
+
+#[derive(AsStd140, Default)]
 struct Uniforms {
     resolution: Vec2,
-    mouse: Vec2,
     grid_spacing: f32,
-    shift_duration: f32,
     time: f32,
+    signal_origin: Vec2,
+    signal_strength: f32,
+    signal_width: f32,
+    noise_seed: f32,
+    noise_floor: f32,
+    noise_deviation: f32,
+    noise_deviation_cap: f32,
 }
 
 impl Uniforms {
-    pub fn update(&mut self, ctx: &Context) {
+    pub fn update(&mut self, ctx: &Context, params: &GameParams) {
         self.resolution = ctx.res();
-        self.time = ctx.time.time_since_start().as_secs_f32();
-        self.mouse = ctx.mouse.position().into();
+        self.time = params.time;
+        self.signal_origin = params.signal_origin;
+        self.noise_seed = params.noise_frame;
+        self.signal_strength = params.signal_progression * params.signal_max_strength;
     }
+}
+
+#[derive(Default)]
+struct GameParams {
+    time: f32,
+    noise_frame: f32,
+    signal_progression: f32,
+    signal_origin: Vec2,
+    signal_ramp_speed: f32,
+    signal_max_strength: f32,
 }
 
 struct Game {
     uniforms: Uniforms,
     params: ShaderParams<Uniforms>,
     shader: Shader,
+    game_params: GameParams,
 }
 
 impl Game {
     pub fn new(ctx: &mut Context) -> GameResult<Game> {
         let mut uniforms = Uniforms {
-            resolution: Vec2::ZERO,
-            mouse: Vec2::ZERO,
-            time: 0.0,
-            grid_spacing: 0.005,
-            shift_duration: 0.05,
+            grid_spacing: 0.1,
+            signal_strength: 0.0,
+            signal_width: 2.0,
+            noise_floor: 0.25,
+            noise_deviation: 0.1,
+            noise_deviation_cap: 3.0,
+            ..Default::default()
         };
-        uniforms.update(ctx);
+        let game_params = GameParams {
+            signal_origin: vec2(rand::random(), rand::random()) * ctx.res(),
+            signal_ramp_speed: 180.0,
+            signal_max_strength: 1.0,
+            ..Default::default()
+        };
+        dbg!(&game_params.signal_origin);
+        uniforms.update(ctx, &game_params);
         let params = ShaderParamsBuilder::new(&uniforms).build(ctx);
         let shader = ShaderBuilder::new()
             .fragment_path("/noise.wgsl")
@@ -68,6 +99,7 @@ impl Game {
             uniforms,
             params,
             shader,
+            game_params,
         };
 
         Ok(this)
@@ -76,7 +108,19 @@ impl Game {
 
 impl EventHandler<Context> for Game {
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
-        self.uniforms.update(ctx);
+        self.game_params.time = ctx.time.time_since_start().as_secs_f32();
+        let new_noise_frame = (self.game_params.time / 0.5).floor();
+        let new_frame = new_noise_frame != self.game_params.noise_frame;
+        self.game_params.noise_frame = new_noise_frame;
+        self.game_params.signal_progression = inv_exp(
+            self.game_params.noise_frame
+                / (self.game_params.signal_ramp_speed * self.game_params.signal_max_strength),
+        );
+        if new_frame {
+            dbg!(self.game_params.noise_frame);
+            dbg!(self.game_params.signal_progression);
+        }
+        self.uniforms.update(ctx, &self.game_params);
         self.params.set_uniforms(ctx, &self.uniforms);
         Ok(())
     }
