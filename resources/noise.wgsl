@@ -37,7 +37,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     let clamped_position = grid_coord * params.grid_spacing;
     let signal_origin_dist = length(clamped_position*params.resolution - params.signal_origin) / norm;
-    let factor = signal_origin_dist * params.signal_width;
+    let factor = signal_origin_dist / params.signal_width;
     let signal_shade = exp(-factor*factor) * params.signal_strength;
     let shade = noise_shade + signal_shade;
 
