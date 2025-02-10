@@ -3,18 +3,13 @@ use std::{env, time::Duration};
 use clap::{Parser, crate_authors, crate_name};
 use crevice::std140::AsStd140;
 use ggez::{
-    Context, ContextBuilder, GameError, GameResult,
-    conf::WindowMode,
-    event::{self, EventHandler},
-    glam::{Vec2, vec2},
-    graphics::{
+    conf::{WindowMode, WindowSetup}, event::{self, EventHandler}, glam::{vec2, Vec2}, graphics::{
         Canvas, Color, DrawMode, DrawParam, Drawable, Mesh, Rect, Shader, ShaderBuilder,
         ShaderParams, ShaderParamsBuilder, Text,
-    },
-    winit::{
+    }, winit::{
         event::MouseButton,
         keyboard::{Key, NamedKey},
-    },
+    }, Context, ContextBuilder, GameError, GameResult
 };
 use util::{AnchorPoint, ContextExt, TextExt};
 
@@ -130,6 +125,7 @@ impl EventHandler<Context> for Game {
             if ctx
                 .keyboard
                 .is_logical_key_just_pressed(&Key::Named(NamedKey::Space))
+                || ctx.mouse.button_just_pressed(MouseButton::Right)
             {
                 self.uniforms.noise_floor = self.args.noise_floor;
                 self.uniforms.noise_deviation = self.args.noise_deviation;
@@ -261,6 +257,7 @@ fn main() -> GameResult<()> {
     let args = Args::parse();
     let (mut ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
+        .window_setup(WindowSetup::default().title("Signal to Noise"))
         .build()?;
     let game = Game::new(&mut ctx, args)?;
     event::run(ctx, event_loop, game)
