@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf, time::Duration};
+use std::{env, time::Duration};
 
 use clap::{Parser, crate_authors, crate_name};
 use crevice::std140::AsStd140;
@@ -107,7 +107,7 @@ impl Game {
         uniforms.update(ctx, &game_params);
         let params = ShaderParamsBuilder::new(&uniforms).build(ctx);
         let shader = ShaderBuilder::new()
-            .fragment_path("/noise.wgsl")
+            .fragment_code(include_str!("../resources/noise.wgsl"))
             .build(ctx)?;
         let this = Game {
             uniforms,
@@ -257,16 +257,8 @@ pub struct Args {
 
 fn main() -> GameResult<()> {
     let args = Args::parse();
-    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut path = PathBuf::from(manifest_dir);
-        path.push("resources");
-        path
-    } else {
-        PathBuf::from("./resources")
-    };
     let (mut ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
-        .add_resource_path(resource_dir)
         .build()?;
     let game = Game::new(&mut ctx, args)?;
     event::run(ctx, event_loop, game)
