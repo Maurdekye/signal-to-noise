@@ -212,6 +212,8 @@ impl EventHandler<Context> for Game {
     }
 }
 
+/// Click on the signal location slowly emerging from the noise.
+/// Press space to try again.
 #[derive(Parser)]
 pub struct Args {
     /// Size of individual cells in the grid as a percentage of the window size.
