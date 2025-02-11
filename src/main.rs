@@ -1,7 +1,7 @@
 #![feature(associated_type_defaults)]
 use std::env;
 
-use clap::{Parser, crate_authors, crate_name};
+use clap::{crate_authors, crate_name, Parser, ValueEnum};
 use ggez::{
     ContextBuilder, GameResult,
     conf::{WindowMode, WindowSetup},
@@ -34,6 +34,14 @@ mod shared {
 }
 mod main_menu;
 mod scene_manager;
+
+
+#[derive(Clone, ValueEnum)]
+pub enum StartingScene {
+    MainMenu,
+    Noise1D,
+    Noise2D,
+}
 
 /// Click on the signal location slowly emerging from the noise.
 /// Press space to try again.
@@ -76,8 +84,12 @@ pub struct Args {
 
     /// Maximum strength of the signal once at peak strength.
     /// Smaller = harder. Reasonable values between 0.0 - 1.0.
-    #[arg(short = 's', long, default_value_t = 1.0)]
+    #[arg(short = 't', long, default_value_t = 1.0)]
     signal_max_strength: f32,
+
+    /// Starting scene.
+    #[arg(short = 's', long, default_value = "main-menu")]
+    starting_scene: StartingScene
 }
 
 fn main() -> GameResult<()> {
@@ -86,7 +98,6 @@ fn main() -> GameResult<()> {
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
         .window_setup(WindowSetup::default().title("Signal to Noise"))
         .build()?;
-    // let game = SceneManager::new(args)?;
-    let game = noise_2d::Noise2D::new(&mut ctx, Shared::new(args))?;
+    let game = SceneManager::new(&mut ctx, args)?;
     event::run(ctx, event_loop, game.event_handler())
 }

@@ -78,6 +78,7 @@ impl Noise2D {
             frame_length,
             signal_ramp_duration,
             signal_max_strength,
+            ..
         } = shared.args;
         let uniforms = Uniforms {
             grid_spacing,

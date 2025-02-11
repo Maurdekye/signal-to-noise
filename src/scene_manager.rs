@@ -7,7 +7,7 @@ use ggez::{
 };
 
 use crate::{
-    Args,
+    Args, StartingScene,
     main_menu::MainMenu,
     noise_1d::Noise1D,
     noise_2d::Noise2D,
@@ -34,8 +34,13 @@ impl SceneManager {
     pub fn new(ctx: &mut Context, args: Args) -> GameResult<SceneManager> {
         let shared = Shared::new(args);
         let (event_sender, event_receiver) = channel();
-        // let scene = Box::new(MainMenu::new(event_sender.clone(), shared.clone())?);
-        let scene = Box::new(Noise2D::new(ctx, shared.clone())?);
+        let scene: Box<dyn SubEventHandler> = match shared.args.starting_scene {
+            StartingScene::MainMenu => {
+                Box::new(MainMenu::new(event_sender.clone(), shared.clone())?)
+            }
+            StartingScene::Noise1D => Box::new(Noise2D::new(ctx, shared.clone())?),
+            StartingScene::Noise2D => Box::new(Noise1D::new(ctx, shared.clone())?),
+        };
         Ok(SceneManager {
             scene,
             shared,
