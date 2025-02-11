@@ -17,6 +17,9 @@ macro_rules! build_shader {
     ($ctx:expr, $src:literal, $uniforms:expr) => {
         $crate::shader_scene::ShaderScene::build($ctx, include_str!($src), $uniforms)
     };
+    ($ctx:expr, $src:literal) => {
+        $crate::shader_scene::ShaderScene::build($ctx, include_str!($src), Default::default())
+    }
 }
 
 pub struct ShaderScene<C>
