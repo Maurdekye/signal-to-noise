@@ -931,7 +931,7 @@ dependencies = [
 [[package]]
 name = "ggez"
 version = "0.9.3"
-source = "git+https://github.com/ggez/ggez.git?rev=21a0c30#21a0c30c3958f0824fd65bb0f659a0a9554fa553"
+source = "git+https://github.com/ggez/ggez.git?rev=d5884f4#d5884f465b49e7add589134c1c9532a38e0d2356"
 dependencies = [
  "approx",
  "base64",
@@ -1024,6 +1024,7 @@ version = "0.29.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc46dd3ec48fdd8e693a98d2b8bafae273a2d54c1de02a2a7e3d57d501f39677"
 dependencies = [
+ "bytemuck",
  "mint",
 ]
 

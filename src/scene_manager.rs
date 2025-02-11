@@ -1,7 +1,9 @@
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use ggez::{
-    input::mouse::{set_cursor_type, CursorIcon}, winit::keyboard::{Key, NamedKey}, Context, GameError, GameResult
+    Context, GameError, GameResult,
+    input::mouse::{CursorIcon, set_cursor_type},
+    winit::keyboard::{Key, NamedKey},
 };
 
 use crate::{
@@ -29,10 +31,11 @@ pub struct SceneManager {
 }
 
 impl SceneManager {
-    pub fn new(args: Args) -> GameResult<SceneManager> {
+    pub fn new(ctx: &mut Context, args: Args) -> GameResult<SceneManager> {
         let shared = Shared::new(args);
         let (event_sender, event_receiver) = channel();
-        let scene = Box::new(MainMenu::new(event_sender.clone(), shared.clone())?);
+        // let scene = Box::new(MainMenu::new(event_sender.clone(), shared.clone())?);
+        let scene = Box::new(Noise2D::new(ctx, shared.clone())?);
         Ok(SceneManager {
             scene,
             shared,

@@ -8,6 +8,7 @@ use ggez::{
     event,
 };
 use scene_manager::SceneManager;
+use shared::Shared;
 use sub_event_handler::SubEventHandler;
 
 mod noise_1d;
@@ -81,10 +82,11 @@ pub struct Args {
 
 fn main() -> GameResult<()> {
     let args = Args::parse();
-    let (ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
+    let (mut ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
         .window_setup(WindowSetup::default().title("Signal to Noise"))
         .build()?;
-    let game = SceneManager::new(args)?;
+    // let game = SceneManager::new(args)?;
+    let game = noise_2d::Noise2D::new(&mut ctx, Shared::new(args))?;
     event::run(ctx, event_loop, game.event_handler())
 }
