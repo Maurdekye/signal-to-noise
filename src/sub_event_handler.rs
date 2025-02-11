@@ -8,10 +8,16 @@ use ggez::{
     input::mouse::MouseContext,
 };
 
-pub trait SubEventHandler<C = Context, E = GameError>: Sized {
+pub trait SubEventHandler<C = Context, E = GameError> {
     fn update(&mut self, ctx: &mut C) -> Result<(), E>;
     fn draw(&mut self, ctx: &mut C, canvas: &mut Canvas) -> Result<(), E>;
-    fn event_handler(self) -> EventHandlerWrapper<Self> {
+    fn quit_event(&mut self, ctx: &mut C) -> Result<bool, E> {
+        Ok(false)
+    }
+    fn event_handler(self) -> EventHandlerWrapper<Self>
+    where
+        Self: Sized,
+    {
         EventHandlerWrapper(self)
     }
 }
@@ -35,5 +41,22 @@ where
         let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
         self.0.draw(ctx, &mut canvas)?;
         Ok(canvas.finish(ctx)?)
+    }
+
+    fn quit_event(&mut self, ctx: &mut C) -> Result<bool, E> {
+        self.0.quit_event(ctx)
+    }
+}
+
+pub trait EventReceiver<E = GameError> {
+    type Event;
+
+    fn handle_event(&mut self, ctx: &mut Context, event: Self::Event) -> Result<(), E>;
+    fn poll_event(&mut self) -> Result<Option<Self::Event>, E>;
+    fn handle_events(&mut self, ctx: &mut Context) -> Result<(), E> {
+        while let Some(event) = self.poll_event()? {
+            self.handle_event(ctx, event)?;
+        }
+        Ok(())
     }
 }

@@ -5,7 +5,10 @@ edition = "2024"
 authors = ["maurdekye"]
 
 [dependencies]
+chrono = "0.4.39"
 clap = { version = "4.5.28", features = ["cargo", "derive"] }
+clipboard-rs = "0.2.3"
 crevice = "0.17.0"
 ggez = { git = "https://github.com/ggez/ggez.git", rev = "21a0c30" }
+log = { version = "0.4.25", features = ["std"] }
 rand = "0.9.0"

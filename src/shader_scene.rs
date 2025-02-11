@@ -56,8 +56,8 @@ where
 
     fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) -> Result<(), GameError> {
         let res = ctx.res();
-        canvas.set_shader(&self.shader);
         self.params.set_uniforms(ctx, &self.uniforms);
+        canvas.set_shader(&self.shader);
         canvas.set_shader_params(&self.params);
         Mesh::new_rectangle(
             ctx,

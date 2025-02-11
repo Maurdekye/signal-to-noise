@@ -1,12 +1,162 @@
-use ggez::{glam::{vec2, Vec2}, graphics::{Canvas, Color, DrawParam, Drawable, Rect, Text}, Context, GameError};
+use std::{
+    collections::{HashMap, HashSet, hash_map::Entry},
+    sync::mpsc::{Receiver, TryRecvError},
+    time::SystemTime,
+};
 
-pub trait ContextExt {
-    fn res(&self) -> Vec2;
+use chrono::{DateTime, Utc};
+use ggez::{
+    Context, GameError,
+    glam::{Vec2, vec2},
+    graphics::{Canvas, Color, DrawParam, Drawable, Rect, Text},
+};
+
+#[macro_export]
+macro_rules! sdbg {
+    ($e:expr) => {
+        match $e {
+            tmp => {
+                std::eprintln!(
+                    "[{}:{}:{}] {} = {:?}",
+                    std::file!(),
+                    std::line!(),
+                    std::column!(),
+                    std::stringify!($e),
+                    &tmp
+                );
+                tmp
+            }
+        };
+    };
+    () => {};
 }
-impl ContextExt for Context {
-    fn res(&self) -> Vec2 {
-        self.gfx.drawable_size().into()
+
+pub fn refit_to_rect(vec: Vec2, rect: Rect) -> Vec2 {
+    vec2(vec.x * rect.w + rect.x, vec.y * rect.h + rect.y)
+}
+
+pub fn point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
+    let mut crossings = 0;
+    for (i, j) in (0..polygon.len()).zip((1..polygon.len()).chain([0])) {
+        let a = polygon[i];
+        let b = polygon[j];
+        if (a.y > point.y) != (b.y > point.y) {
+            let slope = (b.x - a.x) / (b.y - a.y);
+            let x_intersect = slope * (point.y - a.y) + a.x;
+
+            if point.x < x_intersect {
+                crossings += 1;
+            }
+        }
     }
+    crossings % 2 == 1
+}
+
+pub trait HashMapBag<K, V> {
+    fn place(&mut self, key: K, value: V) -> usize;
+}
+
+impl<K, V> HashMapBag<K, V> for HashMap<K, Vec<V>>
+where
+    K: std::hash::Hash + Eq,
+{
+    fn place(&mut self, key: K, value: V) -> usize {
+        match self.entry(key) {
+            Entry::Occupied(occupied_entry) => {
+                let list = occupied_entry.into_mut();
+                list.push(value);
+                list.len()
+            }
+            Entry::Vacant(vacant_entry) => {
+                let key = vacant_entry.into_key();
+                self.insert(key, vec![value]);
+                1
+            }
+        }
+    }
+}
+
+impl<K, V> HashMapBag<K, V> for HashMap<K, HashSet<V>>
+where
+    K: std::hash::Hash + Eq,
+    V: std::hash::Hash + Eq,
+{
+    fn place(&mut self, key: K, value: V) -> usize {
+        match self.entry(key) {
+            Entry::Occupied(occupied_entry) => {
+                let list = occupied_entry.into_mut();
+                list.insert(value);
+                list.len()
+            }
+            Entry::Vacant(vacant_entry) => {
+                let key = vacant_entry.into_key();
+                self.insert(key, HashSet::from([value]));
+                1
+            }
+        }
+    }
+}
+
+pub struct Bag<K, V>(pub HashMap<K, Vec<V>>);
+
+impl<K, V> FromIterator<(K, V)> for Bag<K, V>
+where
+    K: std::hash::Hash + Eq,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut bag = HashMap::new();
+        for (k, v) in iter {
+            bag.place(k, v);
+        }
+        Bag(bag)
+    }
+}
+
+pub trait MapFindExt
+where
+    Self: Iterator,
+{
+    #[allow(unused)]
+    fn map_find<F, O>(self, f: F) -> Option<O>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> Option<O>;
+}
+
+impl<I> MapFindExt for I
+where
+    I: Iterator,
+{
+    fn map_find<F, O>(self, f: F) -> Option<O>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item) -> Option<O>,
+    {
+        self.filter_map(f).next()
+    }
+}
+
+pub trait RotateExt: Sized {
+    fn rotate_(&mut self);
+    #[allow(unused)]
+    fn rotated(mut self) -> Self {
+        self.rotate_();
+        self
+    }
+}
+
+impl RotateExt for Vec2 {
+    fn rotate_(&mut self) {
+        *self = vec2(1.0 - self.y, self.x);
+    }
+}
+
+pub fn color_mul(color: Color, factor: f32) -> Color {
+    Color::from((
+        (color.r * factor).clamp(0.0, 1.0),
+        (color.g * factor).clamp(0.0, 1.0),
+        (color.b * factor).clamp(0.0, 1.0),
+    ))
 }
 
 #[allow(unused)]
@@ -180,6 +330,101 @@ where
         DrawableWihParams {
             drawable: self,
             draw_param,
+        }
+    }
+}
+
+pub trait ContextExt {
+    fn res(&self) -> Vec2;
+}
+
+impl ContextExt for Context {
+    fn res(&self) -> Vec2 {
+        self.gfx.drawable_size().into()
+    }
+}
+
+pub trait MinByF32Key {
+    type Item;
+
+    fn min_by_f32_key(self, f: impl Fn(&Self::Item) -> f32) -> Option<Self::Item>;
+}
+
+impl<I> MinByF32Key for I
+where
+    I: Iterator,
+{
+    type Item = I::Item;
+
+    fn min_by_f32_key(self, f: impl Fn(&Self::Item) -> f32) -> Option<Self::Item> {
+        self.map(|i| (f(&i), i))
+            .min_by(|(a, _), (b, _)| a.total_cmp(b))
+            .map(|(_, i)| i)
+    }
+}
+
+pub trait Vec2ToRectExt {
+    fn to(self, end: Vec2) -> Rect;
+}
+
+impl Vec2ToRectExt for Vec2 {
+    fn to(self, end: Vec2) -> Rect {
+        Rect::new(self.x, self.y, end.x - self.x, end.y - self.y)
+    }
+}
+
+pub trait RectExt {
+    fn bottom_right(&self) -> Vec2;
+    fn parametric(&self, v: Vec2) -> Vec2;
+}
+
+impl RectExt for Rect {
+    fn bottom_right(&self) -> Vec2 {
+        vec2(self.right(), self.bottom())
+    }
+    fn parametric(&self, v: Vec2) -> Vec2 {
+        vec2(self.x + self.w * v.x, self.y + self.h * v.y)
+    }
+}
+
+pub trait SystemTimeExt {
+    fn strftime(self, format_str: &str) -> String;
+}
+
+impl SystemTimeExt for SystemTime {
+    fn strftime(self, format_str: &str) -> String {
+        <DateTime<Utc>>::from(self).format(format_str).to_string()
+    }
+}
+
+pub trait ResultExt {
+    type T;
+
+    fn to_gameerror(self) -> Result<Self::T, GameError>;
+}
+
+impl<T, E> ResultExt for Result<T, E>
+where
+    E: ToString,
+{
+    type T = T;
+
+    fn to_gameerror(self) -> Result<Self::T, GameError> {
+        self.map_err(|e| GameError::CustomError(e.to_string()))
+    }
+}
+
+pub trait ReceiverExt {
+    type Event;
+    fn poll_event(&mut self) -> Result<Option<Self::Event>, GameError>;
+}
+impl<E> ReceiverExt for Receiver<E> {
+    type Event = E;
+    fn poll_event(&mut self) -> Result<Option<Self::Event>, GameError> {
+        match self.try_recv() {
+            Ok(event) => Ok(Some(event)),
+            Err(TryRecvError::Empty) => Ok(None),
+            Err(err) => Err(GameError::CustomError(err.to_string())),
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::shader_scene::ShaderScene;
+use crate::shared::Shared;
 use crate::sub_event_handler::SubEventHandler;
 use crate::util::{AnchorPoint, ContextExt, TextExt};
 use crate::{Args, build_shader};
@@ -63,11 +64,11 @@ impl GameParams {
 pub struct Noise2D {
     shader: ShaderScene<Uniforms>,
     params: GameParams,
-    args: Args,
+    shared: Shared,
 }
 
 impl Noise2D {
-    pub fn new(ctx: &mut Context, args: Args) -> GameResult<Noise2D> {
+    pub fn new(ctx: &mut Context, shared: Shared) -> GameResult<Noise2D> {
         let Args {
             grid_spacing,
             signal_width,
@@ -77,7 +78,7 @@ impl Noise2D {
             frame_length,
             signal_ramp_duration,
             signal_max_strength,
-        } = args;
+        } = shared.args;
         let uniforms = Uniforms {
             grid_spacing,
             signal_width,
@@ -97,7 +98,7 @@ impl Noise2D {
         Ok(Noise2D {
             shader,
             params,
-            args,
+            shared,
         })
     }
 }
@@ -118,17 +119,21 @@ impl SubEventHandler for Noise2D {
             {
                 params.reset(ctx);
 
-                uniforms.noise_floor = self.args.noise_floor;
-                uniforms.noise_deviation = self.args.noise_deviation;
+                uniforms.noise_floor = self.shared.args.noise_floor;
+                uniforms.noise_deviation = self.shared.args.noise_deviation;
             }
         } else {
             let new_noise_frame = (params.time.as_secs_f32() / params.frame_length).floor();
             if new_noise_frame != params.noise_frame {
                 params.noise_frame = new_noise_frame;
-                params.signal_progression = inv_exp(
-                    (params.noise_frame * params.frame_length)
-                        / (params.signal_ramp_duration * params.signal_max_strength),
-                );
+                params.signal_progression = if params.signal_ramp_duration > 0.0 {
+                    inv_exp(
+                        (params.noise_frame * params.frame_length)
+                            / (params.signal_ramp_duration * params.signal_max_strength),
+                    )
+                } else {
+                    1.0
+                };
             }
             if ctx.mouse.button_just_pressed(MouseButton::Left) {
                 let location = ctx.mouse.position().into();
@@ -164,7 +169,7 @@ impl SubEventHandler for Noise2D {
                 .draw(canvas, DrawParam::default());
 
             Text::new(format!(
-                "distance: {distance:.3}\ntime: {:.2}s\nbrightness:{:.1}%",
+                "distance: {distance:.3}\ntime: {:.2}s\nbrightness: {:.1}%",
                 time.as_secs_f32(),
                 self.params.signal_progression * 100.0
             ))
