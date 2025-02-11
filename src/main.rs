@@ -1,14 +1,13 @@
 #![feature(associated_type_defaults)]
 use std::env;
 
-use clap::{crate_authors, crate_name, Parser, ValueEnum};
+use clap::{crate_authors, crate_name, ArgAction, Parser, ValueEnum};
 use ggez::{
     ContextBuilder, GameResult,
     conf::{WindowMode, WindowSetup},
     event,
 };
 use scene_manager::SceneManager;
-use shared::Shared;
 use sub_event_handler::SubEventHandler;
 
 mod noise_1d;
@@ -89,7 +88,11 @@ pub struct Args {
 
     /// Starting scene.
     #[arg(short = 's', long, default_value = "main-menu")]
-    starting_scene: StartingScene
+    starting_scene: StartingScene,
+
+    /// Enable to exhibit the bug at https://github.com/ggez/ggez/issues/1310
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    bug: bool,
 }
 
 fn main() -> GameResult<()> {

@@ -41,6 +41,9 @@ impl SceneManager {
             StartingScene::Noise2D => Box::new(Noise2D::new(ctx, shared.clone())?),
             StartingScene::Noise1D => Box::new(Noise1D::new(ctx, shared.clone())?),
         };
+        if shared.args.bug {
+            event_sender.send(SceneManagerEvent::Noise2D).unwrap();
+        }
         Ok(SceneManager {
             scene,
             shared,
