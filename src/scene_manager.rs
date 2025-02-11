@@ -38,8 +38,8 @@ impl SceneManager {
             StartingScene::MainMenu => {
                 Box::new(MainMenu::new(event_sender.clone(), shared.clone())?)
             }
-            StartingScene::Noise1D => Box::new(Noise2D::new(ctx, shared.clone())?),
-            StartingScene::Noise2D => Box::new(Noise1D::new(ctx, shared.clone())?),
+            StartingScene::Noise2D => Box::new(Noise2D::new(ctx, shared.clone())?),
+            StartingScene::Noise1D => Box::new(Noise1D::new(ctx, shared.clone())?),
         };
         Ok(SceneManager {
             scene,
