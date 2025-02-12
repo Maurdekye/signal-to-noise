@@ -22,7 +22,6 @@ fn smooth_clamp(x: f32, a: f32) -> f32 {
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = position.xy / params.resolution;
     let column: f32 = floor(uv.x / params.column_spacing);
-    let norm = min(params.resolution.x, params.resolution.y);
 
     let base_seed = dot(vec2<f32>(column, column), vec2<f32>(12.9898, 78.233));
     let seed = base_seed + params.noise_seed;
@@ -35,7 +34,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let noise_height = params.noise_deviation * z0_clamped + params.noise_floor;
 
     let clamped_x = (column + 0.5) * params.column_spacing;
-    let signal_origin_dist = abs(clamped_x * params.resolution.x - params.signal_center) / norm;
+    let signal_origin_dist = abs(clamped_x - params.signal_center);
     let factor = signal_origin_dist / params.signal_width;
     let signal_effect = exp(-factor * factor) * params.signal_strength;
     let column_height = noise_height + signal_effect;

@@ -10,6 +10,7 @@ use ggez::{
         keyboard::{Key, NamedKey},
     },
 };
+use serde::Serialize;
 
 use crate::{
     Args, build_shader,
@@ -32,6 +33,7 @@ struct Uniforms {
     noise_deviation_cap: f32,
 }
 
+#[derive(Serialize)]
 struct ClickDecision {
     location: Vec2,
     distance: f32,
@@ -54,7 +56,7 @@ struct GameParams {
 impl GameParams {
     fn reset(&mut self, ctx: &Context) {
         self.start_time = ctx.time.time_since_start();
-        self.signal_center = rand::random::<f32>() * ctx.res().x;
+        self.signal_center = rand::random();
         self.click_location = None;
     }
 }
@@ -105,11 +107,10 @@ impl Noise1D {
 impl SubEventHandler for Noise1D {
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         let res = ctx.res();
-        let norm = res.x.min(res.y);
         let params = &mut self.params;
         let uniforms = &mut self.shader.uniforms;
         params.time = ctx.time.time_since_start() - params.start_time;
-        uniforms.resolution = ctx.res();
+        uniforms.resolution = res;
         if params.click_location.is_some() {
             if ctx
                 .keyboard
@@ -136,8 +137,10 @@ impl SubEventHandler for Noise1D {
             }
             if ctx.mouse.button_just_pressed(MouseButton::Left) {
                 let location: Vec2 = ctx.mouse.position().into();
-                let distance = (params.signal_center - location.x).abs() / norm;
+                let location = location / res;
+                let distance = (params.signal_center - location.x).abs();
                 let time = params.time;
+
                 params.click_location = Some(ClickDecision {
                     location,
                     distance,
@@ -146,6 +149,33 @@ impl SubEventHandler for Noise1D {
 
                 uniforms.noise_floor = 0.0;
                 uniforms.noise_deviation = 0.0;
+
+                #[derive(Serialize)]
+                struct Record {
+                    distance: f32,
+                    time: f32,
+                    strength: f32,
+                }
+
+                self.shared.recorder.record(
+                    "noise_1d",
+                    &format!(
+                        "{}-{}-{}-{}-{}-{}-{}-{}",
+                        self.shared.args.grid_spacing,
+                        self.shared.args.signal_width,
+                        self.shared.args.noise_floor,
+                        self.shared.args.noise_deviation,
+                        self.shared.args.noise_deviation_cap,
+                        self.shared.args.frame_length,
+                        self.shared.args.signal_ramp_duration,
+                        self.shared.args.signal_max_strength
+                    ),
+                    Record {
+                        distance,
+                        time: time.as_secs_f32(),
+                        strength: params.signal_progression * params.signal_max_strength,
+                    },
+                );
             }
             uniforms.signal_center = params.signal_center;
             uniforms.noise_seed = params.noise_frame;
@@ -166,6 +196,8 @@ impl SubEventHandler for Noise1D {
             let res = ctx.res();
 
             // draw lines indicating signal center vs click location
+            let location = location * res;
+            let signal_center = self.params.signal_center * res.x;
             let height = vec2(0.0, res.y * 0.1) / 2.0;
             Mesh::new_line(
                 ctx,
@@ -176,17 +208,14 @@ impl SubEventHandler for Noise1D {
             .draw(canvas);
             Mesh::new_line(
                 ctx,
-                &[
-                    vec2(self.params.signal_center, 0.0),
-                    vec2(self.params.signal_center, res.y),
-                ],
+                &[vec2(signal_center, 0.0), vec2(signal_center, res.y)],
                 4.0,
                 Color::RED,
             )?
             .draw(canvas);
             Mesh::new_line(
                 ctx,
-                &[location, vec2(self.params.signal_center, location.y)],
+                &[location, vec2(signal_center, location.y)],
                 4.0,
                 Color::RED,
             )?

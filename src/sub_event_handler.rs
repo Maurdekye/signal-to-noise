@@ -11,7 +11,7 @@ use ggez::{
 pub trait SubEventHandler<C = Context, E = GameError> {
     fn update(&mut self, ctx: &mut C) -> Result<(), E>;
     fn draw(&mut self, ctx: &mut C, canvas: &mut Canvas) -> Result<(), E>;
-    fn quit_event(&mut self, ctx: &mut C) -> Result<bool, E> {
+    fn quit_event(&mut self, _ctx: &mut C) -> Result<bool, E> {
         Ok(false)
     }
     fn event_handler(self) -> EventHandlerWrapper<Self>

@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::shader_scene::ShaderScene;
 use crate::shared::Shared;
 use crate::sub_event_handler::SubEventHandler;
-use crate::util::{inv_exp, AnchorPoint, ContextExt, TextExt};
+use crate::util::{AnchorPoint, ContextExt, TextExt, inv_exp};
 use crate::{Args, build_shader};
 use crevice::std140::AsStd140;
 use ggez::{
@@ -15,6 +15,7 @@ use ggez::{
         keyboard::{Key, NamedKey},
     },
 };
+use serde::Serialize;
 
 #[derive(AsStd140, Default)]
 struct Uniforms {
@@ -29,6 +30,7 @@ struct Uniforms {
     noise_deviation_cap: f32,
 }
 
+#[derive(Serialize)]
 struct ClickDecision {
     location: Vec2,
     distance: f32,
@@ -51,7 +53,7 @@ struct GameParams {
 impl GameParams {
     fn reset(&mut self, ctx: &Context) {
         self.start_time = ctx.time.time_since_start();
-        self.signal_origin = vec2(rand::random(), rand::random()) * ctx.res();
+        self.signal_origin = vec2(rand::random(), rand::random());
         self.click_location = None;
     }
 }
@@ -102,11 +104,10 @@ impl Noise2D {
 impl SubEventHandler for Noise2D {
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         let res = ctx.res();
-        let norm = res.x.min(res.y);
         let params = &mut self.params;
         let uniforms = &mut self.shader.uniforms;
         params.time = ctx.time.time_since_start() - params.start_time;
-        uniforms.resolution = ctx.res();
+        uniforms.resolution = res;
         if params.click_location.is_some() {
             if ctx
                 .keyboard
@@ -132,9 +133,11 @@ impl SubEventHandler for Noise2D {
                 };
             }
             if ctx.mouse.button_just_pressed(MouseButton::Left) {
-                let location = ctx.mouse.position().into();
-                let distance = params.signal_origin.distance(location) / norm;
+                let location: Vec2 = ctx.mouse.position().into();
+                let location = location / res;
+                let distance = params.signal_origin.distance(location);
                 let time = params.time;
+
                 params.click_location = Some(ClickDecision {
                     location,
                     distance,
@@ -143,6 +146,33 @@ impl SubEventHandler for Noise2D {
 
                 uniforms.noise_floor = 0.0;
                 uniforms.noise_deviation = 0.0;
+
+                #[derive(Serialize)]
+                struct Record {
+                    distance: f32,
+                    time: f32,
+                    strength: f32,
+                }
+
+                self.shared.recorder.record(
+                    "noise_2d",
+                    &format!(
+                        "{}-{}-{}-{}-{}-{}-{}-{}",
+                        self.shared.args.grid_spacing,
+                        self.shared.args.signal_width,
+                        self.shared.args.noise_floor,
+                        self.shared.args.noise_deviation,
+                        self.shared.args.noise_deviation_cap,
+                        self.shared.args.frame_length,
+                        self.shared.args.signal_ramp_duration,
+                        self.shared.args.signal_max_strength
+                    ),
+                    Record {
+                        distance,
+                        time: time.as_secs_f32(),
+                        strength: params.signal_progression * params.signal_max_strength,
+                    },
+                );
             }
             uniforms.signal_origin = params.signal_origin;
             uniforms.noise_seed = params.noise_frame;
@@ -160,8 +190,14 @@ impl SubEventHandler for Noise2D {
             time,
         }) = self.params.click_location
         {
-            Mesh::new_line(ctx, &[location, self.params.signal_origin], 4.0, Color::RED)?
-                .draw(canvas, DrawParam::default());
+            let res = ctx.res();
+            Mesh::new_line(
+                ctx,
+                &[location * res, self.params.signal_origin * res],
+                4.0,
+                Color::RED,
+            )?
+            .draw(canvas, DrawParam::default());
 
             Text::new(format!(
                 "distance: {distance:.3}\ntime: {:.2}s\nbrightness: {:.1}%",
