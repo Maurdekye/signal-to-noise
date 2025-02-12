@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::shader_scene::ShaderScene;
 use crate::shared::Shared;
 use crate::sub_event_handler::SubEventHandler;
-use crate::util::{AnchorPoint, ContextExt, TextExt};
+use crate::util::{inv_exp, AnchorPoint, ContextExt, TextExt};
 use crate::{Args, build_shader};
 use crevice::std140::AsStd140;
 use ggez::{
@@ -16,15 +16,10 @@ use ggez::{
     },
 };
 
-fn inv_exp(x: f32) -> f32 {
-    1.0 - (-x).exp()
-}
-
 #[derive(AsStd140, Default)]
 struct Uniforms {
     resolution: Vec2,
     grid_spacing: f32,
-    time: f32,
     signal_origin: Vec2,
     signal_strength: f32,
     signal_width: f32,
@@ -149,7 +144,6 @@ impl SubEventHandler for Noise2D {
                 uniforms.noise_floor = 0.0;
                 uniforms.noise_deviation = 0.0;
             }
-            uniforms.time = params.time.as_secs_f32();
             uniforms.signal_origin = params.signal_origin;
             uniforms.noise_seed = params.noise_frame;
             uniforms.signal_strength = params.signal_progression * params.signal_max_strength;

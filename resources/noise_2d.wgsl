@@ -1,7 +1,6 @@
 struct Uniforms {
     resolution: vec2<f32>,
     grid_spacing: f32,
-    time: f32,
     signal_origin: vec2<f32>,
     signal_strength: f32,
     signal_width: f32,
@@ -16,7 +15,7 @@ var<uniform> params: Uniforms;
 
 fn smooth_clamp(x: f32, a: f32) -> f32 {
     let z = clamp(x / a, -1.5, 1.5);
-    return a * (z - ((4/27) *z*z*z));
+    return a * (z - ((4.0/27.0) *z*z*z));
 }
 
 @fragment
@@ -35,7 +34,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let z0_clamped = smooth_clamp(z0, params.noise_deviation_cap);
     let noise_shade = params.noise_deviation * z0_clamped + params.noise_floor;
 
-    let clamped_position = (grid_coord * params.grid_spacing + vec2<f32>(params.grid_spacing / 2.0, params.grid_spacing / 2.0));
+    let clamped_position = (grid_coord + 0.5) * params.grid_spacing;
     let signal_origin_dist = length(clamped_position*params.resolution - params.signal_origin) / norm;
     let factor = signal_origin_dist / params.signal_width;
     let signal_shade = exp(-factor*factor) * params.signal_strength;

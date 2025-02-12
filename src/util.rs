@@ -428,3 +428,7 @@ impl<E> ReceiverExt for Receiver<E> {
         }
     }
 }
+
+pub fn inv_exp(x: f32) -> f32 {
+    1.0 - (-x).exp()
+}

@@ -1,14 +1,13 @@
 #![feature(associated_type_defaults)]
 use std::env;
 
-use clap::{crate_authors, crate_name, Parser, ValueEnum};
+use clap::{Parser, ValueEnum, crate_authors, crate_name};
 use ggez::{
     ContextBuilder, GameResult,
     conf::{WindowMode, WindowSetup},
     event,
 };
 use scene_manager::SceneManager;
-use shared::Shared;
 use sub_event_handler::SubEventHandler;
 
 mod noise_1d;
@@ -34,7 +33,6 @@ mod shared {
 }
 mod main_menu;
 mod scene_manager;
-
 
 #[derive(Clone, ValueEnum)]
 pub enum StartingScene {
@@ -88,8 +86,8 @@ pub struct Args {
     signal_max_strength: f32,
 
     /// Starting scene.
-    #[arg(short = 's', long, default_value = "main-menu")]
-    starting_scene: StartingScene
+    #[arg(short = 's', long, value_enum, default_value_t = StartingScene::MainMenu)]
+    starting_scene: StartingScene,
 }
 
 fn main() -> GameResult<()> {
