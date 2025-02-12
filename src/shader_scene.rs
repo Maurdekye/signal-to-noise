@@ -37,10 +37,8 @@ where
     C: AsStd140,
 {
     pub fn build(ctx: &mut Context, src: &str, uniforms: C) -> GameResult<ShaderScene<C>> {
-        debug!("ticks = {}", ctx.time.ticks());
         let params = ShaderParamsBuilder::new(&uniforms).build(ctx);
         let shader = ShaderBuilder::new().fragment_code(src).build(ctx)?;
-        ctx.time.tick();
         Ok(ShaderScene {
             uniforms,
             shader,
@@ -58,7 +56,6 @@ where
     }
 
     fn draw(&mut self, ctx: &mut Context, canvas: &mut Canvas) -> Result<(), GameError> {
-        debug!("ticks = {}", ctx.time.ticks());
         let res = ctx.res();
         self.params.set_uniforms(ctx, &self.uniforms);
         canvas.set_shader(&self.shader);

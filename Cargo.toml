@@ -15,3 +15,6 @@ rand = "0.9.0"
 
 [patch.crates-io]
 wgpu = { path = "../wgpu/wgpu" }
+
+[patch."https://github.com/ggez/ggez.git"]
+ggez = { path = "../ggez" }
