@@ -931,7 +931,7 @@ dependencies = [
 [[package]]
 name = "ggez"
 version = "0.9.3"
-source = "git+https://github.com/ggez/ggez.git?rev=d5884f4#d5884f465b49e7add589134c1c9532a38e0d2356"
+source = "git+https://github.com/Maurdekye/ggez.git?branch=devel#a092e9db1614e925c1f5119af4dda49a4e9d3cb7"
 dependencies = [
  "approx",
  "base64",
