@@ -5,6 +5,7 @@ use ggez::{
     input::mouse::{CursorIcon, set_cursor_type},
     winit::keyboard::{Key, NamedKey},
 };
+use log::trace;
 
 use crate::{
     Args, StartingScene,

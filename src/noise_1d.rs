@@ -5,7 +5,7 @@ use crate::{
     build_shader, shader_scene::ShaderScene, shared::Shared, sub_event_handler::SubEventHandler,
 };
 
-#[derive(AsStd140, Default)]
+#[derive(AsStd140, Default, Debug)]
 struct Uniforms {
     x: f32,
 }

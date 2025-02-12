@@ -12,3 +12,6 @@ crevice = "0.17.0"
 ggez = { git = "https://github.com/ggez/ggez.git", rev = "d5884f4" }
 log = { version = "0.4.25", features = ["std"] }
 rand = "0.9.0"
+
+[patch.crates-io]
+wgpu = { path = "../wgpu/wgpu" }

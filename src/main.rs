@@ -1,12 +1,13 @@
 #![feature(associated_type_defaults)]
-use std::env;
+use std::{env, io::Write};
 
-use clap::{crate_authors, crate_name, ArgAction, Parser, ValueEnum};
+use clap::{ArgAction, Parser, ValueEnum, crate_authors, crate_name};
 use ggez::{
     ContextBuilder, GameResult,
     conf::{WindowMode, WindowSetup},
     event,
 };
+use log::{Log, set_max_level};
 use scene_manager::SceneManager;
 use sub_event_handler::SubEventHandler;
 
@@ -33,7 +34,6 @@ mod shared {
 }
 mod main_menu;
 mod scene_manager;
-
 
 #[derive(Clone, ValueEnum)]
 pub enum StartingScene {
@@ -95,8 +95,34 @@ pub struct Args {
     bug: bool,
 }
 
+struct Logger;
+
+impl Log for Logger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.target().starts_with("signal_to_noise")
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            println!(
+                "[{}:{}] {}",
+                record.target(),
+                record.line().unwrap(),
+                record.args()
+            );
+        }
+    }
+
+    fn flush(&self) {
+        std::io::stdout().flush().unwrap()
+    }
+}
+
 fn main() -> GameResult<()> {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    args.bug = true;
+    // args.starting_scene = StartingScene::Noise2D;
+    let _ = log::set_logger(&Logger).map(|_| set_max_level(log::LevelFilter::Trace));
     let (mut ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
         .window_setup(WindowSetup::default().title("Signal to Noise"))

@@ -20,7 +20,7 @@ fn inv_exp(x: f32) -> f32 {
     1.0 - (-x).exp()
 }
 
-#[derive(AsStd140, Default)]
+#[derive(AsStd140, Default, Debug)]
 struct Uniforms {
     resolution: Vec2,
     grid_spacing: f32,
