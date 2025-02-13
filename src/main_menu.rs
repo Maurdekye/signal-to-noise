@@ -5,9 +5,9 @@ use ggez::{
     graphics::{Canvas, Rect, Text},
 };
 
-use crate::{
-    scene_manager::SceneManagerEvent,
-    shared::Shared,
+use crate::{scene_manager::SceneManagerEvent, shared::Shared};
+
+use ggez_no_re::{
     sub_event_handler::SubEventHandler,
     ui_manager::{Bounds, Button, UIElement, UIManager},
 };

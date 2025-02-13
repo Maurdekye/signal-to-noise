@@ -11,6 +11,9 @@ use crate::{
     main_menu::MainMenu,
     noise::{Noise, NoiseMode},
     shared::Shared,
+};
+
+use ggez_no_re::{
     sub_event_handler::{EventReceiver, SubEventHandler},
     util::ReceiverExt,
 };

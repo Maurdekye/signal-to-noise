@@ -1,14 +1,15 @@
-use crate::{Args, recorder::Recorder};
+use crate::Args;
+use ggez_no_re::csv_recorder::CsvRecorder;
 
 #[derive(Clone)]
 pub struct Shared {
     pub args: Args,
-    pub recorder: Recorder,
+    pub recorder: CsvRecorder,
 }
 
 impl Shared {
     pub fn new(args: Args) -> Shared {
-        let recorder = Recorder::new(&args);
+        let recorder = CsvRecorder::new(&args.record_path);
         Shared { args, recorder }
     }
 }

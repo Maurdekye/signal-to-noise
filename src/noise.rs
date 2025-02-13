@@ -1,10 +1,6 @@
 use std::time::Duration;
 
-use crate::shader_scene::ShaderScene;
-use crate::shared::Shared;
-use crate::sub_event_handler::SubEventHandler;
-use crate::util::{AnchorPoint, ContextExt, DrawableWihParamsExt, TextExt, inv_exp};
-use crate::{Args, build_shader};
+use crate::{Args, shared::Shared};
 use crevice::std140::AsStd140;
 use ggez::{
     Context, GameError, GameResult,
@@ -15,7 +11,15 @@ use ggez::{
         keyboard::{Key, NamedKey},
     },
 };
+use ggez_no_re::build_shader;
+use ggez_no_re::shader_scene::ShaderScene;
+use ggez_no_re::sub_event_handler::SubEventHandler;
+use ggez_no_re::util::{AnchorPoint, ContextExt, DrawableWihParamsExt, TextExt};
 use serde::Serialize;
+
+pub fn inv_exp(x: f32) -> f32 {
+    1.0 - (-x).exp()
+}
 
 #[derive(AsStd140, Default)]
 struct Uniforms {
@@ -166,12 +170,12 @@ impl SubEventHandler for Noise {
                 }
 
                 self.shared.recorder.record(
-                    match self.mode {
-                        NoiseMode::OneDimensional => "noise_1d",
-                        NoiseMode::TwoDimensional => "noise_2d",
-                    },
-                    &format!(
-                        "{}-{}-{}-{}-{}-{}-{}-{}",
+                    format!(
+                        "{}/{}-{}-{}-{}-{}-{}-{}-{}",
+                        match self.mode {
+                            NoiseMode::OneDimensional => "noise_1d",
+                            NoiseMode::TwoDimensional => "noise_2d",
+                        },
                         self.shared.args.cell_spacing,
                         self.shared.args.signal_width,
                         self.shared.args.noise_floor,

@@ -7,23 +7,17 @@ use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
 };
-use logger::Logger;
+use ggez_no_re::{
+    logger::{LogLevel, Logger},
+    sub_event_handler::SubEventHandler,
+    util::ResultExtToGameError,
+};
 use scene_manager::SceneManager;
-use sub_event_handler::SubEventHandler;
-use util::ResultExt;
 
-mod noise;
-mod shader_scene;
-mod sub_event_handler;
-#[allow(unused)]
-mod ui_manager;
-#[allow(unused)]
-mod util;
-mod shared;
-mod logger;
 mod main_menu;
-mod recorder;
+mod noise;
 mod scene_manager;
+mod shared;
 
 #[derive(Clone, ValueEnum)]
 pub enum StartingScene {
@@ -86,7 +80,7 @@ pub struct Args {
 }
 
 fn main() -> GameResult<()> {
-    Logger::install(log::LevelFilter::Debug).to_gameerror()?;
+    Logger::install(None, LogLevel::Info, "signal_to_noise").to_gameerror()?;
     let args = Args::parse();
     let (mut ctx, event_loop) = ContextBuilder::new(crate_name!(), crate_authors!())
         .window_mode(WindowMode::default().dimensions(800.0, 800.0))
