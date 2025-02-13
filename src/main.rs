@@ -12,8 +12,7 @@ use scene_manager::SceneManager;
 use sub_event_handler::SubEventHandler;
 use util::ResultExt;
 
-mod noise_1d;
-mod noise_2d;
+mod noise;
 mod shader_scene;
 mod sub_event_handler;
 #[allow(unused)]
@@ -39,8 +38,8 @@ pub enum StartingScene {
 pub struct Args {
     /// Size of individual cells in the grid as a percentage of the window size.
     /// Bigger = harder. Reasonable values between 0.001 - 0.25.
-    #[arg(short, long, default_value_t = 0.05)]
-    grid_spacing: f32,
+    #[arg(short = 's', long, default_value_t = 0.05)]
+    cell_spacing: f32,
 
     /// Width of the signal as a percentage of the window size.
     /// Bigger = harder. Reasonable values between 0.01 - 4.0.
@@ -78,7 +77,7 @@ pub struct Args {
     signal_max_strength: f32,
 
     /// Starting scene.
-    #[arg(short = 's', long, value_enum, default_value_t = StartingScene::MainMenu)]
+    #[arg(short = 'e', long, value_enum, default_value_t = StartingScene::MainMenu)]
     starting_scene: StartingScene,
 
     /// Directory to record attempts in.

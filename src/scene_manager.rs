@@ -9,8 +9,7 @@ use ggez::{
 use crate::{
     Args, StartingScene,
     main_menu::MainMenu,
-    noise_1d::Noise1D,
-    noise_2d::Noise2D,
+    noise::{Noise, NoiseMode},
     shared::Shared,
     sub_event_handler::{EventReceiver, SubEventHandler},
     util::ReceiverExt,
@@ -38,8 +37,12 @@ impl SceneManager {
             StartingScene::MainMenu => {
                 Box::new(MainMenu::new(event_sender.clone(), shared.clone())?)
             }
-            StartingScene::Noise2D => Box::new(Noise2D::new(ctx, shared.clone())?),
-            StartingScene::Noise1D => Box::new(Noise1D::new(ctx, shared.clone())?),
+            StartingScene::Noise1D => {
+                Box::new(Noise::new(ctx, shared.clone(), NoiseMode::OneDimensional)?)
+            }
+            StartingScene::Noise2D => {
+                Box::new(Noise::new(ctx, shared.clone(), NoiseMode::TwoDimensional)?)
+            }
         };
         Ok(SceneManager {
             scene,
@@ -95,11 +98,19 @@ impl EventReceiver for SceneManager {
                     self.shared.clone(),
                 )?);
             }
-            SceneManagerEvent::Noise2D => {
-                self.scene = Box::new(Noise2D::new(ctx, self.shared.clone())?);
-            }
             SceneManagerEvent::Noise1D => {
-                self.scene = Box::new(Noise1D::new(ctx, self.shared.clone())?);
+                self.scene = Box::new(Noise::new(
+                    ctx,
+                    self.shared.clone(),
+                    NoiseMode::OneDimensional,
+                )?);
+            }
+            SceneManagerEvent::Noise2D => {
+                self.scene = Box::new(Noise::new(
+                    ctx,
+                    self.shared.clone(),
+                    NoiseMode::TwoDimensional,
+                )?);
             }
         };
         Ok(())

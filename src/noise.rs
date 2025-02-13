@@ -1,5 +1,10 @@
 use std::time::Duration;
 
+use crate::shader_scene::ShaderScene;
+use crate::shared::Shared;
+use crate::sub_event_handler::SubEventHandler;
+use crate::util::{AnchorPoint, ContextExt, DrawableWihParamsExt, TextExt, inv_exp};
+use crate::{Args, build_shader};
 use crevice::std140::AsStd140;
 use ggez::{
     Context, GameError, GameResult,
@@ -12,25 +17,18 @@ use ggez::{
 };
 use serde::Serialize;
 
-use crate::{
-    Args, build_shader,
-    shader_scene::ShaderScene,
-    shared::Shared,
-    sub_event_handler::SubEventHandler,
-    util::{AnchorPoint, ContextExt, DrawableWihParamsExt, TextExt, inv_exp},
-};
-
 #[derive(AsStd140, Default)]
 struct Uniforms {
     resolution: Vec2,
-    column_spacing: f32,
-    signal_center: f32,
+    cell_spacing: f32,
+    signal_origin: Vec2,
     signal_strength: f32,
     signal_width: f32,
     noise_seed: f32,
     noise_floor: f32,
     noise_deviation: f32,
     noise_deviation_cap: f32,
+    dimensions: u32,
 }
 
 #[derive(Serialize)]
@@ -47,7 +45,7 @@ struct GameParams {
     noise_frame: f32,
     frame_length: f32,
     signal_progression: f32,
-    signal_center: f32,
+    signal_origin: Vec2,
     signal_ramp_duration: f32,
     signal_max_strength: f32,
     click_location: Option<ClickDecision>,
@@ -56,21 +54,29 @@ struct GameParams {
 impl GameParams {
     fn reset(&mut self, ctx: &Context) {
         self.start_time = ctx.time.time_since_start();
-        self.signal_center = rand::random();
+        self.signal_origin = vec2(rand::random(), rand::random());
         self.click_location = None;
     }
 }
 
-pub struct Noise1D {
+#[repr(u32)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum NoiseMode {
+    OneDimensional = 1,
+    TwoDimensional = 2,
+}
+
+pub struct Noise {
     shader: ShaderScene<Uniforms>,
     params: GameParams,
     shared: Shared,
+    mode: NoiseMode,
 }
 
-impl Noise1D {
-    pub fn new(ctx: &mut Context, shared: Shared) -> GameResult<Noise1D> {
+impl Noise {
+    pub fn new(ctx: &mut Context, shared: Shared, mode: NoiseMode) -> GameResult<Noise> {
         let Args {
-            grid_spacing,
+            cell_spacing,
             signal_width,
             noise_floor,
             noise_deviation,
@@ -81,14 +87,14 @@ impl Noise1D {
             ..
         } = shared.args;
         let uniforms = Uniforms {
-            column_spacing: grid_spacing,
+            cell_spacing,
             signal_width,
             noise_floor,
             noise_deviation,
             noise_deviation_cap,
+            dimensions: mode as u32,
             ..Default::default()
         };
-        let shader = build_shader!(ctx, "../resources/noise_1d.wgsl", uniforms)?;
         let mut params = GameParams {
             frame_length,
             signal_ramp_duration,
@@ -96,15 +102,17 @@ impl Noise1D {
             ..Default::default()
         };
         params.reset(ctx);
-        Ok(Noise1D {
+        let shader = build_shader!(ctx, "../resources/noise.wgsl", uniforms)?;
+        Ok(Noise {
             shader,
             params,
             shared,
+            mode,
         })
     }
 }
 
-impl SubEventHandler for Noise1D {
+impl SubEventHandler for Noise {
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         let res = ctx.res();
         let params = &mut self.params;
@@ -138,7 +146,7 @@ impl SubEventHandler for Noise1D {
             if ctx.mouse.button_just_pressed(MouseButton::Left) {
                 let location: Vec2 = ctx.mouse.position().into();
                 let location = location / res;
-                let distance = (params.signal_center - location.x).abs();
+                let distance = params.signal_origin.distance(location);
                 let time = params.time;
 
                 params.click_location = Some(ClickDecision {
@@ -158,10 +166,13 @@ impl SubEventHandler for Noise1D {
                 }
 
                 self.shared.recorder.record(
-                    "noise_1d",
+                    match self.mode {
+                        NoiseMode::OneDimensional => "noise_1d",
+                        NoiseMode::TwoDimensional => "noise_2d",
+                    },
                     &format!(
                         "{}-{}-{}-{}-{}-{}-{}-{}",
-                        self.shared.args.grid_spacing,
+                        self.shared.args.cell_spacing,
                         self.shared.args.signal_width,
                         self.shared.args.noise_floor,
                         self.shared.args.noise_deviation,
@@ -177,7 +188,7 @@ impl SubEventHandler for Noise1D {
                     },
                 );
             }
-            uniforms.signal_center = params.signal_center;
+            uniforms.signal_origin = params.signal_origin;
             uniforms.noise_seed = params.noise_frame;
             uniforms.signal_strength = params.signal_progression * params.signal_max_strength;
         }
@@ -194,35 +205,46 @@ impl SubEventHandler for Noise1D {
         }) = self.params.click_location
         {
             let res = ctx.res();
-
-            // draw lines indicating signal center vs click location
-            let location = location * res;
-            let signal_center = self.params.signal_center * res.x;
-            let height = vec2(0.0, res.y * 0.1) / 2.0;
-            Mesh::new_line(
-                ctx,
-                &[location - height, location + height],
-                4.0,
-                Color::RED,
-            )?
-            .draw(canvas);
-            Mesh::new_line(
-                ctx,
-                &[vec2(signal_center, 0.0), vec2(signal_center, res.y)],
-                4.0,
-                Color::RED,
-            )?
-            .draw(canvas);
-            Mesh::new_line(
-                ctx,
-                &[location, vec2(signal_center, location.y)],
-                4.0,
-                Color::RED,
-            )?
-            .draw(canvas);
+            if self.mode == NoiseMode::OneDimensional {
+                let location = location * res;
+                let signal_center = self.params.signal_origin.x * res.x;
+                let height = vec2(0.0, res.y * 0.1) / 2.0;
+                Mesh::new_line(
+                    ctx,
+                    &[location - height, location + height],
+                    4.0,
+                    Color::RED,
+                )?
+                .draw(canvas);
+                Mesh::new_line(
+                    ctx,
+                    &[vec2(signal_center, 0.0), vec2(signal_center, res.y)],
+                    4.0,
+                    Color::RED,
+                )?
+                .draw(canvas);
+                Mesh::new_line(
+                    ctx,
+                    &[location, vec2(signal_center, location.y)],
+                    4.0,
+                    Color::RED,
+                )?
+                .draw(canvas);
+            } else {
+                Mesh::new_line(
+                    ctx,
+                    &[location * res, self.params.signal_origin * res],
+                    4.0,
+                    Color::RED,
+                )?
+                .draw(canvas);
+            }
 
             Text::new(format!(
-                "distance: {distance:.3}\ntime: {:.2}s\nbrightness: {:.1}%",
+                "\
+distance: {distance:.3}
+time: {:.2}s
+strength: {:.1}%",
                 time.as_secs_f32(),
                 self.params.signal_progression * 100.0
             ))

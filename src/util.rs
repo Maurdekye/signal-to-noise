@@ -12,6 +12,16 @@ use ggez::{
 };
 
 #[macro_export]
+macro_rules! select {
+    ($t:expr, $f:expr, $cond:expr) => {
+        match $cond {
+            true => $t,
+            false => $f,
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! sdbg {
     ($e:expr) => {
         match $e {
