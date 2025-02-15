@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::{Args, shared::Shared};
+use clap::ValueEnum;
 use crevice::std140::AsStd140;
 use ggez::{
     Context, GameError, GameResult,
@@ -21,6 +22,22 @@ pub fn inv_exp(x: f32) -> f32 {
     1.0 - (-x).exp()
 }
 
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+#[repr(u32)]
+pub enum Distribution {
+    #[default]
+    Gaussian = 0,
+    Pareto,
+    Triangle,
+    Uniform,
+}
+
+impl std::fmt::Display for Distribution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_possible_value().unwrap().get_name())
+    }
+}
+
 #[derive(AsStd140, Default)]
 struct Uniforms {
     resolution: Vec2,
@@ -28,10 +45,13 @@ struct Uniforms {
     signal_origin: Vec2,
     signal_strength: f32,
     signal_width: f32,
+    signal_shape: u32,
     noise_seed: f32,
     noise_floor: f32,
     noise_deviation: f32,
     noise_deviation_cap: f32,
+    noise_distribution: u32,
+    noise_pareto_distribution_parameter: f32,
     dimensions: u32,
 }
 
@@ -83,17 +103,23 @@ impl Noise {
             cell_spacing,
             signal_width,
             noise_floor,
+            noise_distribution,
+            noise_pareto_distribution_parameter,
             noise_deviation,
             noise_deviation_cap,
-            frame_length,
+            frame_time: frame_length,
             signal_ramp_duration,
             signal_max_strength,
+            signal_shape,
             ..
         } = shared.args;
         let uniforms = Uniforms {
             cell_spacing,
             signal_width,
+            signal_shape: signal_shape as u32,
             noise_floor,
+            noise_distribution: noise_distribution as u32,
+            noise_pareto_distribution_parameter,
             noise_deviation,
             noise_deviation_cap,
             dimensions: mode as u32,
@@ -171,7 +197,7 @@ impl SubEventHandler for Noise {
 
                 self.shared.recorder.record(
                     format!(
-                        "{}/{}-{}-{}-{}-{}-{}-{}-{}",
+                        "{}/{}-{}-{}-{}-{}-{}-{}-{}-{}-{}",
                         match self.mode {
                             NoiseMode::OneDimensional => "noise_1d",
                             NoiseMode::TwoDimensional => "noise_2d",
@@ -179,11 +205,19 @@ impl SubEventHandler for Noise {
                         self.shared.args.cell_spacing,
                         self.shared.args.signal_width,
                         self.shared.args.noise_floor,
+                        match self.shared.args.noise_distribution {
+                            Distribution::Pareto => format!(
+                                "pareto({})",
+                                self.shared.args.noise_pareto_distribution_parameter
+                            ),
+                            distribution => format!("{distribution}"),
+                        },
                         self.shared.args.noise_deviation,
                         self.shared.args.noise_deviation_cap,
-                        self.shared.args.frame_length,
+                        self.shared.args.frame_time,
                         self.shared.args.signal_ramp_duration,
-                        self.shared.args.signal_max_strength
+                        self.shared.args.signal_max_strength,
+                        self.shared.args.signal_shape
                     ),
                     Record {
                         distance,
